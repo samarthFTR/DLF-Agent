@@ -1,0 +1,25 @@
+process.env.NODE_ENV = 'test';
+process.env.PORT = '3000';
+process.env.API_BASE_URL = 'http://localhost:3000';
+process.env.FRONTEND_URL = 'http://localhost:5173';
+process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5432/ai_marketing_agent';
+process.env.JWT_ACCESS_SECRET = 'test-access-secret-value';
+process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-value';
+process.env.TOKEN_ENCRYPTION_KEY = 'test-token-encryption-key';
+process.env.STORAGE_PROVIDER = 'local';
+process.env.LOCAL_STORAGE_ROOT = './storage';
+process.env.PUBLIC_ASSET_BASE_URL = 'http://localhost:3000/assets';
+process.env.LLM_DEFAULT_PROVIDER = 'gemini';
+process.env.GEMINI_TEXT_MODEL = 'gemini-2.5-flash';
+process.env.GEMINI_VISION_MODEL = 'gemini-2.5-flash';
+process.env.IMAGE_GENERATION_PROVIDER = 'gemini';
+process.env.REDIS_URL = 'redis://localhost:6379';
+process.env.N8N_BASE_URL = 'http://localhost:5678';
+process.env.N8N_WEBHOOK_SECRET = 'test-n8n-webhook-secret';
+process.env.INSTAGRAM_REDIRECT_URI = 'http://localhost:3000/api/v1/oauth/instagram/callback';
+process.env.LINKEDIN_REDIRECT_URI = 'http://localhost:3000/api/v1/oauth/linkedin/callback';
+process.env.FACEBOOK_REDIRECT_URI = 'http://localhost:3000/api/v1/oauth/facebook/callback';
+process.env.X_REDIRECT_URI = 'http://localhost:3000/api/v1/oauth/x/callback';
+process.env.LOG_LEVEL = 'fatal';
+process.env.RELEASE_VERSION = 'test';
+
