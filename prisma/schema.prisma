@@ -1,0 +1,387 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SocialPlatform {
+  INSTAGRAM
+  LINKEDIN
+  FACEBOOK
+  X
+}
+
+enum CampaignStatus {
+  DRAFT
+  GENERATING
+  NEEDS_REVIEW
+  APPROVED
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+  CANCELLED
+}
+
+enum PublishMode {
+  MANUAL
+  SCHEDULED
+  AUTO
+}
+
+enum AssetKind {
+  SOURCE_PRODUCT_IMAGE
+  GENERATED_CREATIVE
+  RESIZED_CREATIVE
+}
+
+enum GeneratedPostStatus {
+  DRAFT
+  NEEDS_REVIEW
+  APPROVED
+  REJECTED
+  PUBLISHED
+}
+
+enum AgentRunStatus {
+  QUEUED
+  RUNNING
+  NEEDS_INPUT
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum PublishJobStatus {
+  QUEUED
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+  CANCELLED
+}
+
+model Tenant {
+  id              String                    @id @default(uuid()) @db.Uuid
+  name            String
+  slug            String                    @unique
+  users           User[]
+  products        Product[]
+  campaigns       Campaign[]
+  assets          Asset[]
+  agentRuns       AgentRun[]
+  generatedPosts  GeneratedPost[]
+  socialAccounts  SocialAccount[]
+  publishJobs     PublishJob[]
+  analytics       AnalyticsEvent[]
+  recommendations AnalyticsRecommendation[]
+  auditEvents     AuditEvent[]
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+}
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email     String
+  name      String?
+  role      String   @default("member")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+model Product {
+  id              String                    @id @default(uuid()) @db.Uuid
+  tenantId        String                    @db.Uuid
+  tenant          Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name            String
+  description     String
+  features        Json
+  category        String
+  targetAudience  String
+  brandGuidelines String?
+  metadata        Json                      @default("{}")
+  assets          Asset[]
+  campaigns       Campaign[]
+  recommendations AnalyticsRecommendation[]
+  createdBy       String?                   @db.Uuid
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  @@unique([id, tenantId])
+  @@index([tenantId])
+  @@index([tenantId, category])
+}
+
+model Asset {
+  id         String      @id @default(uuid()) @db.Uuid
+  tenantId   String      @db.Uuid
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productId  String?     @db.Uuid
+  product    Product?    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  campaignId String?     @db.Uuid
+  campaign   Campaign?   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  kind       AssetKind
+  storageKey String
+  publicUrl  String?
+  mimeType   String
+  width      Int?
+  height     Int?
+  checksum   String?
+  metadata   Json        @default("{}")
+  postAssets PostAsset[]
+  createdAt  DateTime    @default(now())
+
+  @@unique([id, tenantId])
+  @@index([tenantId, productId])
+  @@index([tenantId, campaignId])
+}
+
+model Campaign {
+  id              String                    @id @default(uuid()) @db.Uuid
+  tenantId        String                    @db.Uuid
+  tenant          Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productId       String                    @db.Uuid
+  product         Product                   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name            String
+  status          CampaignStatus            @default(DRAFT)
+  platforms       SocialPlatform[]
+  publishMode     PublishMode               @default(MANUAL)
+  scheduledAt     DateTime?
+  approvedBy      String?                   @db.Uuid
+  approvedAt      DateTime?
+  assets          Asset[]
+  agentRuns       AgentRun[]
+  generatedPosts  GeneratedPost[]
+  creativeBriefs  CreativeBrief[]
+  publishJobs     PublishJob[]
+  qualityChecks   QualityCheck[]
+  analytics       AnalyticsEvent[]
+  recommendations AnalyticsRecommendation[]
+  createdBy       String?                   @db.Uuid
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  @@index([tenantId, productId])
+  @@index([tenantId, status])
+}
+
+model AgentRun {
+  id             String          @id @default(uuid()) @db.Uuid
+  tenantId       String          @db.Uuid
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  campaignId     String          @db.Uuid
+  campaign       Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  status         AgentRunStatus  @default(QUEUED)
+  graphName      String
+  graphVersion   String
+  currentAgent   String?
+  llmProvider    String          @default("gemini")
+  llmModel       String
+  inputSnapshot  Json            @default("{}")
+  outputSnapshot Json            @default("{}")
+  error          Json?
+  events         AgentRunEvent[]
+  generatedPosts GeneratedPost[]
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  createdAt      DateTime        @default(now())
+
+  @@index([campaignId, createdAt])
+  @@index([tenantId, status])
+}
+
+model AgentRunEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  agentRunId String   @db.Uuid
+  agentRun   AgentRun @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+  agentName  String
+  eventType  String
+  payload    Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  @@index([agentRunId, createdAt])
+}
+
+model CreativeBrief {
+  id              String         @id @default(uuid()) @db.Uuid
+  campaignId      String         @db.Uuid
+  campaign        Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  platform        SocialPlatform
+  theme           String
+  visualDirection String
+  imagePrompt     String
+  negativePrompt  String?
+  metadata        Json           @default("{}")
+  createdAt       DateTime       @default(now())
+
+  @@index([campaignId, platform])
+}
+
+model GeneratedPost {
+  id            String                 @id @default(uuid()) @db.Uuid
+  tenantId      String                 @db.Uuid
+  tenant        Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  campaignId    String                 @db.Uuid
+  campaign      Campaign               @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  agentRunId    String?                @db.Uuid
+  agentRun      AgentRun?              @relation(fields: [agentRunId], references: [id], onDelete: SetNull)
+  platform      SocialPlatform
+  status        GeneratedPostStatus    @default(DRAFT)
+  caption       String
+  hashtags      String[]
+  callToAction  String?
+  scheduledAt   DateTime?
+  promptVersion String
+  modelMetadata Json                   @default("{}")
+  versions      GeneratedPostVersion[]
+  assets        PostAsset[]
+  publishJobs   PublishJob[]
+  analytics     AnalyticsEvent[]
+  approvedBy    String?                @db.Uuid
+  approvedAt    DateTime?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  @@index([tenantId, campaignId])
+  @@index([campaignId, platform])
+}
+
+model GeneratedPostVersion {
+  id            String        @id @default(uuid()) @db.Uuid
+  postId        String        @db.Uuid
+  post          GeneratedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  versionNumber Int
+  caption       String
+  hashtags      String[]
+  callToAction  String?
+  changeReason  String
+  changedBy     String?       @db.Uuid
+  createdAt     DateTime      @default(now())
+
+  @@unique([postId, versionNumber])
+  @@index([postId, versionNumber])
+}
+
+model PostAsset {
+  postId    String         @db.Uuid
+  post      GeneratedPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  assetId   String         @db.Uuid
+  asset     Asset          @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  platform  SocialPlatform
+  sortOrder Int            @default(0)
+
+  @@id([postId, assetId])
+}
+
+model QualityCheck {
+  id         String   @id @default(uuid()) @db.Uuid
+  campaignId String   @db.Uuid
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  checkName  String
+  status     String
+  severity   String   @default("info")
+  findings   Json     @default("[]")
+  createdAt  DateTime @default(now())
+
+  @@index([campaignId, createdAt])
+}
+
+model SocialAccount {
+  id                    String         @id @default(uuid()) @db.Uuid
+  tenantId              String         @db.Uuid
+  tenant                Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  platform              SocialPlatform
+  accountName           String
+  externalAccountId     String
+  encryptedAccessToken  String
+  encryptedRefreshToken String?
+  tokenExpiresAt        DateTime?
+  scopes                String[]
+  publishJobs           PublishJob[]
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  @@unique([tenantId, platform, externalAccountId])
+}
+
+model PublishJob {
+  id              String           @id @default(uuid()) @db.Uuid
+  tenantId        String           @db.Uuid
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  campaignId      String           @db.Uuid
+  campaign        Campaign         @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  postId          String           @db.Uuid
+  post            GeneratedPost    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  socialAccountId String           @db.Uuid
+  socialAccount   SocialAccount    @relation(fields: [socialAccountId], references: [id], onDelete: Restrict)
+  platform        SocialPlatform
+  status          PublishJobStatus @default(QUEUED)
+  idempotencyKey  String           @unique
+  scheduledAt     DateTime?
+  publishedAt     DateTime?
+  externalPostId  String?
+  error           Json?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([tenantId, status, scheduledAt])
+  @@index([campaignId, platform])
+}
+
+model AnalyticsEvent {
+  id             String         @id @default(uuid()) @db.Uuid
+  tenantId       String         @db.Uuid
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  campaignId     String?        @db.Uuid
+  campaign       Campaign?      @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  postId         String?        @db.Uuid
+  post           GeneratedPost? @relation(fields: [postId], references: [id], onDelete: SetNull)
+  platform       SocialPlatform
+  externalPostId String?
+  metricName     String
+  metricValue    Decimal
+  measuredAt     DateTime
+  rawPayload     Json           @default("{}")
+  createdAt      DateTime       @default(now())
+
+  @@index([campaignId, platform, measuredAt])
+  @@index([postId, metricName, measuredAt])
+}
+
+model AnalyticsRecommendation {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @db.Uuid
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productId  String?   @db.Uuid
+  product    Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  campaignId String?   @db.Uuid
+  campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  category   String?
+  summary    String
+  evidence   Json      @default("[]")
+  createdAt  DateTime  @default(now())
+
+  @@index([tenantId, category, createdAt])
+}
+
+model AuditEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actorUserId String?  @db.Uuid
+  action      String
+  entityType  String
+  entityId    String?  @db.Uuid
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+}
