@@ -3,11 +3,12 @@ import { AppError } from '../../utils/errors.js';
 import type { RequestContext } from '../../types/request-context.js';
 import { AgentRunRepository } from './agent-run.repository.js';
 import { CampaignRepository } from '../campaigns/campaign.repository.js';
+import { campaignGenerationQueue } from '../../jobs/queues.js';
+import { env } from '../../config/env.js';
 
-// Graph metadata kept minimal for now — will be filled by the orchestrator in Phase 2.3+
 const GRAPH_NAME = 'marketing-pipeline';
 const GRAPH_VERSION = '0.1.0';
-const DEFAULT_LLM_MODEL = 'gemini-1.5-pro';
+const DEFAULT_LLM_MODEL = env.GEMINI_TEXT_MODEL;
 
 export class AgentRunService {
   public constructor(
@@ -43,6 +44,19 @@ export class AgentRunService {
       eventType: 'run.queued',
       payload: { graphName: GRAPH_NAME, graphVersion: GRAPH_VERSION },
     });
+
+    // Dispatch to BullMQ — fire-and-forget, worker picks up asynchronously
+    await campaignGenerationQueue.add(
+      'generate',
+      {
+        tenantId: context.tenantId,
+        campaignId,
+        agentRunId: run.id,
+        productId: campaign.productId,
+        platforms: campaign.platforms as string[],
+      },
+      { attempts: 2, backoff: { type: 'exponential', delay: 5000 } },
+    );
 
     return run;
   }
