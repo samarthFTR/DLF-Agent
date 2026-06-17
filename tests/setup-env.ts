@@ -22,4 +22,31 @@ process.env.FACEBOOK_REDIRECT_URI = 'http://localhost:3000/api/v1/oauth/facebook
 process.env.X_REDIRECT_URI = 'http://localhost:3000/api/v1/oauth/x/callback';
 process.env.LOG_LEVEL = 'fatal';
 process.env.RELEASE_VERSION = 'test';
+import { vi } from 'vitest';
 
+vi.mock('bullmq', () => {
+  return {
+    Queue: class {
+      public name: string;
+      public add: any;
+      public close: any;
+      constructor(name: string) {
+        this.name = name;
+        this.add = vi.fn().mockResolvedValue({ id: 'mocked-job-id' });
+        this.close = vi.fn().mockResolvedValue(undefined);
+      }
+    },
+    Worker: class {
+      public name: string;
+      public processor: any;
+      public close: any;
+      public on: any;
+      constructor(name: string, processor: any) {
+        this.name = name;
+        this.processor = processor;
+        this.close = vi.fn().mockResolvedValue(undefined);
+        this.on = vi.fn().mockReturnValue(this);
+      }
+    },
+  };
+});

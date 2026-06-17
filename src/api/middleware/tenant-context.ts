@@ -5,6 +5,10 @@ import { AppError } from '../../utils/errors.js';
 const tenantHeaderSchema = z.string().uuid();
 
 export function tenantContextMiddleware(req: Request, _res: Response, next: NextFunction): void {
+  if (req.context?.tenantId) {
+    next();
+    return;
+  }
   const tenantId = req.header('x-tenant-id');
   const parsedTenantId = tenantHeaderSchema.safeParse(tenantId);
 
