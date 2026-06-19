@@ -2,8 +2,12 @@
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1';
 
 export class ApiError extends Error {
-  constructor(public status: number, public code: string, message: string) {
+  status: number;
+  code: string;
+  constructor(status: number, code: string, message: string) {
     super(message);
+    this.status = status;
+    this.code = code;
   }
 }
 
@@ -41,6 +45,27 @@ export const api = {
       request<{ product: Product }>(`/products/${id}`, { tenantId }),
     delete: (tenantId: string, id: string) =>
       request<void>(`/products/${id}`, { method: 'DELETE', tenantId }),
+  },
+
+  assets: {
+    listProductImages: (tenantId: string, productId: string) =>
+      request<{ assets: Asset[] }>(`/products/${productId}/images`, { tenantId }),
+    uploadProductImage: async (tenantId: string, productId: string, file: File): Promise<{ asset: Asset }> => {
+      const formData = new FormData();
+      formData.append('image', file);
+      const res = await fetch(`${BASE}/products/${productId}/images`, {
+        method: 'POST',
+        headers: { 'x-tenant-id': tenantId },
+        body: formData,
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new ApiError(res.status, body?.error?.code ?? 'UNKNOWN', body?.error?.message ?? res.statusText);
+      }
+      return res.json();
+    },
+    deleteAsset: (tenantId: string, assetId: string) =>
+      request<void>(`/assets/${assetId}`, { method: 'DELETE', tenantId }),
   },
 
   campaigns: {
@@ -105,6 +130,13 @@ export type Product = {
   id: string; tenantId: string; name: string; description: string;
   features: string[]; category: string; targetAudience: string;
   brandGuidelines?: string | null; createdAt: string; updatedAt: string;
+};
+
+export type Asset = {
+  id: string; tenantId: string; productId?: string | null;
+  campaignId?: string | null; kind: string; storageKey: string;
+  publicUrl?: string | null; mimeType: string;
+  width?: number | null; height?: number | null; createdAt: string;
 };
 
 export type Campaign = {
