@@ -24,6 +24,14 @@ export function createApp(): express.Express {
   app.use(requestIdMiddleware);
   app.use(httpLogger);
 
+  // Serve storage directory statically for asset previews
+  app.use('/assets', express.static(env.LOCAL_STORAGE_ROOT, {
+    setHeaders: (res) => {
+      res.set('Access-Control-Allow-Origin', env.FRONTEND_URL);
+      res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+    }
+  }));
+
   app.use('/api/v1', apiRoutes);
 
   app.use(notFoundMiddleware);
