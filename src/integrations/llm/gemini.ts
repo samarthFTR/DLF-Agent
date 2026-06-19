@@ -70,3 +70,31 @@ export async function generateStructuredOutput<T>(
 
   return result.data;
 }
+
+/**
+ * Generate an image from a text prompt using Gemini's Imagen 3 model.
+ * Returns the image as a Buffer.
+ */
+export async function generateImageFromPrompt(
+  prompt: string,
+  options: { aspectRatio?: '1:1' | '3:4' | '4:3' | '9:16' | '16:9'; negativePrompt?: string } = {},
+): Promise<Buffer> {
+  const client = getClient();
+  const response = await client.models.generateImages({
+    model: 'imagen-3.0-generate-002',
+    prompt,
+    config: {
+      numberOfImages: 1,
+      outputMimeType: 'image/jpeg',
+      aspectRatio: options.aspectRatio ?? '1:1',
+      negativePrompt: options.negativePrompt,
+    },
+  });
+
+  const generatedImage = response.generatedImages?.[0];
+  if (!generatedImage || !generatedImage.image?.imageBytes) {
+    throw new Error('No image returned from Gemini Imagen');
+  }
+
+  return Buffer.from(generatedImage.image.imageBytes, 'base64');
+}

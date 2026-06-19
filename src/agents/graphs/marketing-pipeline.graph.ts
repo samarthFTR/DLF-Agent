@@ -92,6 +92,7 @@ async function imageProcessingNode(state: typeof GraphState.State) {
     platforms: state.platforms as string[],
     sourceAssets: state.sourceAssets ?? [],
     imageGenerationEnabled: state.creativeStrategy?.imageGenerationEnabled ?? false,
+    creativeStrategy: state.creativeStrategy,
   });
 
   return { imageOutputs: output };
