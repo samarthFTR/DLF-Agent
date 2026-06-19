@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 import { AppError } from '../../utils/errors.js';
+import { prisma } from '../../database/prisma.js';
 
 const tenantHeaderSchema = z.string().uuid();
 
@@ -25,11 +26,28 @@ export function tenantContextMiddleware(req: Request, _res: Response, next: Next
     return;
   }
 
-  req.context = {
-    tenantId: parsedTenantId.data,
-    userId: parsedUserId?.data,
-  };
-  next();
+  // Ensure the tenant exists in the database
+  const id = parsedTenantId.data;
+  prisma.tenant
+    .upsert({
+      where: { id },
+      update: {},
+      create: {
+        id,
+        name: `Tenant ${id.substring(0, 8)}`,
+        slug: `tenant-${id}`,
+      },
+    })
+    .then(() => {
+      req.context = {
+        tenantId: id,
+        userId: parsedUserId?.data,
+      };
+      next();
+    })
+    .catch((err) => {
+      next(err);
+    });
 }
 
 export function requireRequestContext(req: Request): NonNullable<Request['context']> {

@@ -1,4 +1,12 @@
 export const prismaMock = {
+  tenant: {
+    create: vi.fn(),
+    findMany: vi.fn(),
+    findFirst: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    upsert: vi.fn().mockImplementation((args) => Promise.resolve({ id: args.where.id, name: 'Test Tenant', slug: `test-tenant` })),
+  },
   product: {
     create: vi.fn(),
     findMany: vi.fn(),
