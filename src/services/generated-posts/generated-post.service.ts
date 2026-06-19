@@ -18,6 +18,21 @@ export class GeneratedPostService {
         callToAction: true, scheduledAt: true, promptVersion: true,
         modelMetadata: true, approvedBy: true, approvedAt: true,
         createdAt: true, updatedAt: true,
+        assets: {
+          select: {
+            asset: {
+              select: {
+                id: true,
+                kind: true,
+                storageKey: true,
+                publicUrl: true,
+                mimeType: true,
+                width: true,
+                height: true,
+              },
+            },
+          },
+        },
       },
     });
   }
@@ -31,6 +46,21 @@ export class GeneratedPostService {
         callToAction: true, scheduledAt: true, promptVersion: true,
         modelMetadata: true, approvedBy: true, approvedAt: true,
         createdAt: true, updatedAt: true,
+        assets: {
+          select: {
+            asset: {
+              select: {
+                id: true,
+                kind: true,
+                storageKey: true,
+                publicUrl: true,
+                mimeType: true,
+                width: true,
+                height: true,
+              },
+            },
+          },
+        },
         versions: { orderBy: { versionNumber: 'asc' }, select: {
           id: true, versionNumber: true, caption: true, hashtags: true,
           callToAction: true, changeReason: true, createdAt: true,

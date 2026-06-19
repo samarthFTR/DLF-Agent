@@ -1,5 +1,6 @@
 import { prisma } from '../../database/prisma.js';
 import { logger } from '../../utils/logger.js';
+import { env } from '../../config/env.js';
 import type { MarketingGraphState } from '../graphs/marketing-pipeline.state.js';
 
 /**
@@ -50,26 +51,66 @@ export async function persistCampaignNode(
     }
   }
 
-  // Persist resized asset records
+  // Persist newly generated original creative assets
+  if (state.imageOutputs?.generatedAssets) {
+    for (const gen of state.imageOutputs.generatedAssets) {
+      await prisma.asset.create({
+        data: {
+          tenantId: state.tenantId,
+          campaignId: state.campaignId,
+          productId: state.productId,
+          kind: 'GENERATED_CREATIVE',
+          storageKey: gen.storageKey,
+          publicUrl: `${env.PUBLIC_ASSET_BASE_URL}/${gen.storageKey.replace(/\\/g, '/')}`,
+          mimeType: 'image/jpeg',
+          metadata: {
+            platform: gen.platform,
+            promptUsed: gen.promptUsed,
+          },
+        },
+      });
+    }
+  }
+
+  // Persist resized asset records and link to generated posts
   if (state.imageOutputs?.resizedAssets) {
     for (const resized of state.imageOutputs.resizedAssets) {
-      await prisma.asset.create({
+      const dbAsset = await prisma.asset.create({
         data: {
           tenantId: state.tenantId,
           campaignId: state.campaignId,
           productId: state.productId,
           kind: 'RESIZED_CREATIVE',
           storageKey: resized.storageKey,
+          publicUrl: `${env.PUBLIC_ASSET_BASE_URL}/${resized.storageKey.replace(/\\/g, '/')}`,
           mimeType: 'image/jpeg',
           width: resized.width,
           height: resized.height,
           metadata: {
             platform: resized.platform,
             label: resized.label,
-            sourceAssetId: resized.sourceAssetId,
+            sourceAssetId: resized.sourceAssetId ?? null,
           },
         },
       });
+
+      // Find the generated post for this campaign and platform
+      const matchedPost = await prisma.generatedPost.findFirst({
+        where: {
+          campaignId: state.campaignId,
+          platform: resized.platform as never,
+        },
+      });
+
+      if (matchedPost) {
+        await prisma.postAsset.create({
+          data: {
+            postId: matchedPost.id,
+            assetId: dbAsset.id,
+            platform: resized.platform as never,
+          },
+        });
+      }
     }
   }
 
